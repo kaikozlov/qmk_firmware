@@ -44,10 +44,6 @@ static uint8_t led_mcu_wakeup[11] = {0x7b, 0x10, 0x43, 0x10, 0x03, 0x00, 0x00, 0
 
 ble_capslock_t ble_capslock = {._dummy = {0}, .caps_lock = false};
 
-#ifdef RGB_MATRIX_ENABLE
-static uint8_t led_enabled = 1;
-#endif
-
 void mcu_reset(void) {
     __disable_irq();
     NVIC_SystemReset();
@@ -108,19 +104,8 @@ void keyboard_post_init_kb(void) {
 
     #ifdef RGB_MATRIX_ENABLE
     ap2_led_set_manual_control(1);
-    /*
-     * Reconcile Shine's matrix state with rgb_matrix's persisted enable state.
-     *
-     * rgb_matrix_init() (run earlier in keyboard_init) already restored
-     * rgb_matrix_config.enable from EEPROM. If the user last turned the LEDs
-     * off (via KC_AP_RGB_TOG), we must tell Shine to power down too --
-     * otherwise Shine boots into its default profile 0 (white, full brightness)
-     * and stays lit until rgb_matrix_task flushes black a few cycles later,
-     * producing the "half-on after replug" symptom. Sync led_enabled so
-     * KC_AP_RGB_TOG works correctly immediately after boot.
-     */
-    led_enabled = rgb_matrix_is_enabled();
-    if (led_enabled) {
+    /* Keep Shine's power state in sync with QMK's persisted RGB matrix state. */
+    if (rgb_matrix_is_enabled()) {
         ap2_led_enable();
     } else {
         ap2_led_disable();
@@ -274,14 +259,12 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
                         rgb_matrix_decrease_speed();
                         return false;
                     } else {
-                        if (led_enabled) {
+                        if (rgb_matrix_is_enabled()) {
                             ap2_led_disable();
                             rgb_matrix_disable();
-                            led_enabled = 0;
                         } else {
                             ap2_led_enable();
                             rgb_matrix_enable();
-                            led_enabled = 1;
                         }
                         return true;
                     }
