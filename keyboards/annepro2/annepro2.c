@@ -108,7 +108,23 @@ void keyboard_post_init_kb(void) {
 
     #ifdef RGB_MATRIX_ENABLE
     ap2_led_set_manual_control(1);
-    ap2_led_enable();
+    /*
+     * Reconcile Shine's matrix state with rgb_matrix's persisted enable state.
+     *
+     * rgb_matrix_init() (run earlier in keyboard_init) already restored
+     * rgb_matrix_config.enable from EEPROM. If the user last turned the LEDs
+     * off (via KC_AP_RGB_TOG), we must tell Shine to power down too --
+     * otherwise Shine boots into its default profile 0 (white, full brightness)
+     * and stays lit until rgb_matrix_task flushes black a few cycles later,
+     * producing the "half-on after replug" symptom. Sync led_enabled so
+     * KC_AP_RGB_TOG works correctly immediately after boot.
+     */
+    led_enabled = rgb_matrix_is_enabled();
+    if (led_enabled) {
+        ap2_led_enable();
+    } else {
+        ap2_led_disable();
+    }
     #endif
 
     keyboard_post_init_user();
